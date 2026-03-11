@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 from openpyxl import load_workbook # type: ignore
+from bs4 import BeautifulSoup
 
 def get_confirmation():
     choice = input("Do you want to create yesterday's report? (Press 'N' or 'n' for No, any other key for Yes): ").strip()
@@ -25,19 +26,22 @@ plan_bal = plan_pcs - accu_qc_pass
 qc_pass = production_followup_wb.active['B5'].value
 efficiency = production_followup_wb.active['G5'].value
 completed_days = production_followup_wb.active['O5'].value - production_followup_wb.active['P5'].value
-req_per_day = (qc_pass + plan_bal) / (completed_days + 1)
+req_per_day = int((qc_pass + plan_bal) / (completed_days + 1))
 operator_present = production_followup_wb.active['K5'].value
 
 # cutting data
-cut_to_poly_df = pd.read_csv(
-    'Cut_to_poly.csv',
-    na_filter=False,
-    encoding='latin1'   # or 'cp1252'
-)
-cutting_pcs = 0
-for index, row in cut_to_poly_df.iterrows():
-    if row['Unit'] != '' and row['Unit'].startswith('JFL'):
-        cutting_pcs += int(row['Today Cutting(QC)'])
+cutting_file = 'DBL GROUP.html'
+with open(cutting_file, "r", encoding="utf-8") as file:
+    html_file = file.read()
+html_content = BeautifulSoup(html_file, "html.parser")
+rows = []
+for row in html_content.find_all('tr'):
+    row_data = [cell.get_text(strip=True) for cell in row.find_all('td')]
+    rows.append(row_data)
+cutting_pcs = ''
+for row in rows:
+    if len(row) == 8 and row[1] == 'JFL SubTotal':
+        cutting_pcs = row[2]
 
 # print Embroidery
 emb_pcs = 0
@@ -54,6 +58,23 @@ for i in range(9, 1000):
         elif print_emb_ws[f'E{i}'].value == "PRINT+EMB":
             print_emb += int(print_emb_ws[f'K{i}'].value)
 
+# Fabric Status
+master_file = load_workbook("F:/1. Work/1. Daily/Master File JFL/Master File-JFL .xlsx", data_only=True)
+master_ws = master_file["Fabric Main"]
+buyer_fabric = {}
+total_fabric_rec = 0
+for i in range(3, 1000):
+    if master_ws[f'M{i}'].value != None and master_ws[f'M{i}'].value > 0:
+        total_fabric_rec += master_ws[f'M{i}'].value
+        if master_ws[f'E{i}'].value not in buyer_fabric:
+            buyer_fabric[master_ws[f'E{i}'].value] = 0
+        buyer_fabric[master_ws[f'E{i}'].value] += master_ws[f'M{i}'].value
+print(buyer_fabric)
+buyer_fabric_text = ""
+for buyer, qty in buyer_fabric.items():
+    buyer_fabric_text += f"{buyer:<20} {qty:>10} Kg\n"
+
+
 result = f"""
 Production & Fabric Challan Summary of JFL on {today}.
 
@@ -65,11 +86,8 @@ Cutting= {cutting_pcs} Pcs
 Output= {qc_pass} Pcs
 Efficiency= {efficiency * 100} %
 
-Total Fabric challan = Kgs 
-GE= 2568 Kgs
-BS= 902 Kgs
-
-
+Total Fabric challan = {total_fabric_rec} Kg 
+{buyer_fabric_text}
 {today} Operator Status:
 Existing: 608
 Present: {operator_present}
