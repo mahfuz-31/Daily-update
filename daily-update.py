@@ -47,19 +47,25 @@ for row in rows:
 emb_pcs = 0
 print_pcs = 0
 print_emb = 0
+emb_bal = 0
+print_bal = 0
+print_emb_bal = 0
 print_emb_wb = load_workbook("JFL-PRINT & EMB BALANCE STATUS.xlsx", data_only=True)
 print_emb_ws = print_emb_wb.active
 for i in range(9, 1000):
     if print_emb_ws[f'K{i}'].value != None:
         if print_emb_ws[f'E{i}'].value == "PRINT":
             print_pcs += int(print_emb_ws[f'K{i}'].value)
+            print_bal += int(print_emb_ws[f'N{i}'].value)
         elif print_emb_ws[f'E{i}'].value == "EMB":
             emb_pcs += int(print_emb_ws[f'K{i}'].value)
+            emb_bal += int(print_emb_ws[f'N{i}'].value)
         elif print_emb_ws[f'E{i}'].value == "PRINT+EMB":
             print_emb += int(print_emb_ws[f'K{i}'].value)
+            print_emb_bal += int(print_emb_ws[f'N{i}'].value)
 
 # Fabric Status
-master_file = load_workbook("F:/1. Work/1. Daily/Master File JFL/Master File-JFL .xlsx", data_only=True)
+master_file = load_workbook("F:/1. Work/1. Daily/Master File JFL/Master File-JFL.xlsx", data_only=True)
 master_ws = master_file["Fabric Main"]
 buyer_fabric = {}
 total_fabric_rec = 0
@@ -92,9 +98,13 @@ Total Fabric challan = {total_fabric_rec} Kg
 Existing: 608
 Present: {operator_present}
 
-Print & Emb. Rcvd Status on {today}
+Print & Emb. Status on {today}
+Recieve Status:
 Print= {print_pcs + print_emb} Pcs
 Emb.= {emb_pcs + print_emb} Pcs
+Balance Status:
+Print= {print_bal + print_emb_bal} Pcs
+Emb.= {emb_bal + print_emb_bal} Pcs
 """
 with open(f"{today}.txt", "w", encoding="utf-8") as f:
     f.write(result)
